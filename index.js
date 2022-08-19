@@ -1,52 +1,44 @@
 const puppeteer = require('puppeteer-extra')
 const fs = require('fs');
 const fetch = require('node-fetch');
-// add stealth plugin and use defaults (all evasion techniques)
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
 
 const [names, , , , surnames] = fs.readFileSync('./baseOfNames.txt', 'utf-8').split('\n');
 
 (async () => {
-  const args = [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-infobars',
-    '--window-position=0,0',
-    '--ignore-certifcate-errors',
-    '--ignore-certifcate-errors-spki-list',
-
-    '--proxy-server=185.181.245.194:5500',
-    
-    '--user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3312.0 Safari/537.36"'
-  ];
-
-  const puppeteerOptions = {
-      args,
-      headless: false,
-
-      slowMo: 50, 
-      executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-
-      ignoreHTTPSErrors: true,
-      // userDataDir: './tmp'
-  };
-
-  const browser = await puppeteer.launch(puppeteerOptions);
-  await regNewAccount(browser);
-  // await browser.close();
+  while (true) {
+    const browser = await puppeteer.launch({ headless: false, slowMo: 50,  args: [
+      '--disable-blink-features=AutomationControlled',
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-infobars',
+      '--lang=en'
+    ] });
+    await regNewAccount(browser);
+    await browser.close();
+  }
 })();
 
 async function regNewAccount(browser){
-  const page = await browser.newPage();
-  await page.authenticate({
-    username: 'BESTpr0xyshopTG',
-    password: 'proxysoxybot',
-  });
-  const preloadFile = fs.readFileSync('./preload.js', 'utf8');
-  await page.evaluateOnNewDocument(preloadFile);
+  
+  const page = (await browser.pages())[0];
+
+  const cookies = fs.readFileSync('./mailru-cookies.json', 'utf8');
+  const deserializedCookies = JSON.parse(cookies);
+  await page.setCookie(...deserializedCookies); 
+  
   const regLink = 'https://account.mail.ru/signup?back=https%3A%2F%2Fe.mail.ru%2Fmessages%2Finbox%3Fauthid%3Dl6sdg4ve.8rs%26back%3D1%26dwhsplit%3Ds10273.b1ss12743s%26from%3Dlogin%26mt_click_id%3Dmt-y7s979-1660423780-588292344%26mt_sub1%3Dmail.ru%26mt_sub5%3D56%26utm_campaign%3De.mail.ru%26utm_medium%3Dnew_portal_navigation%26utm_source%3Dportal%26x-login-auth%3D1&dwhsplit=s10273.b1ss12743s&from=login';
   await page.goto(regLink);
+
+  const localStorage = fs.readFileSync('mailru-localStorage.json', 'utf8');
+  const deserializedStorage = JSON.parse(localStorage);
+  await page.evaluate(deserializedStorage => {
+    for (const key in deserializedStorage) {
+        localStorage.setItem(key, deserializedStorage[key]);
+    }
+  }, deserializedStorage);
+
   const data = {
     name: getRandomElement(names.split(' ')),
     surname: getRandomElement(surnames.split(' ')),
@@ -114,12 +106,6 @@ function getRandomString(length, options) {
   }
   return result;
 }
-
-// function getRandomIntInclusive(min, max) {
-//   min = Math.ceil(min);
-//   max = Math.floor(max);
-//   return Math.floor(Math.random() * (max - min + 1)) + min;
-// }
 
 function getRandomElement(items){
   return items[Math.floor(Math.random()*items.length)];
